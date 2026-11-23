@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estação de bombeamento 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap">
+<style>
+/* VOICE: técnico e didático, como uma prancha de engenharia comentada em aula.
+   IDEA: a planta isométrica de um P&ID, que vira maquete 3D manipulável.
+   PICTURE: a estação em 3D com a fronteira tracejada, as interfaces pulsando e o supra-sistema esmaecido fora dela.
+   COLOUR and TYPE: petróleo #12303A, água #2F8FB5, âmbar #E39B2D para fronteira e interface; Space Grotesk + Inter, como os slides.
+   LAYOUT: título curto, maquete grande em cima, controles sobre ela; abaixo, ficha do componente e leitura da fronteira. */
+:root{color-scheme:light dark;--bg:light-dark(#F4F7F7,#0E2128);--panel:light-dark(#FFFFFF,#163541);--ink:light-dark(#12303A,#E6EFF1);--soft:light-dark(#4A5D64,#A9C2C7);--line:light-dark(#D5E0E2,#2A4A55);--teal:light-dark(#0E6F80,#5FC3D2);--amber:#E39B2D;--red:light-dark(#C0392B,#FF7B6B);--ok:light-dark(#1E7A4C,#6FD39E)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,Arial,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:'Space Grotesk',Arial,sans-serif;line-height:1.08;margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,3.4vw,44px)}h2{font-size:24px}h3{font-size:18px}
+.band{padding:clamp(20px,3vw,40px) max(4vw,16px)}
+.head{display:flex;flex-wrap:wrap;gap:8px 32px;align-items:end;justify-content:space-between;max-width:1400px;margin:0 auto}
+.head p{margin:0;color:var(--soft);max-width:64ch}
+.stage{position:relative;max-width:1400px;margin:0 auto;height:min(68vh,640px);min-height:420px;border-radius:14px;overflow:hidden;background:var(--panel);border:1px solid var(--line)}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#labels{position:absolute;inset:0;pointer-events:none}
+.lb{position:absolute;transform:translate(-50%,-120%);font:600 12px/1.2 Inter,Arial,sans-serif;padding:3px 7px;border-radius:6px;background:color-mix(in srgb,var(--panel) 88%,transparent);color:var(--ink);border:1px solid var(--line);white-space:nowrap}
+.lb.out{opacity:.7;font-weight:400}
+.lb.int{background:var(--amber);color:#14262c;border-color:var(--amber)}
+.lb.srv{background:#0E6F80;color:#fff;border-color:#0E6F80}
+.lb.fail{background:var(--red);color:#fff;border-color:var(--red)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;max-width:1400px;margin:0 auto 12px}
+button,.chip{font:600 14px Inter,Arial,sans-serif;min-height:40px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button:focus-visible,.chip:focus-within{outline:3px solid var(--amber);outline-offset:2px}
+button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip{display:inline-flex;gap:8px;align-items:center}.chip input{width:18px;height:18px;accent-color:var(--amber)}
+.status{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;max-width:1400px;margin:12px auto 0}
+.pill{padding:10px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-weight:600;max-width:640px}
+.pill.ok{border-color:var(--ok);color:var(--ok)}.pill.bad{border-color:var(--red);color:var(--red)}.pill.ext{border-color:var(--amber)}
+.pill small{display:block;font-weight:400;color:var(--soft)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:24px;max-width:1400px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.card p{margin:.4em 0;color:var(--soft)}.card b{color:var(--ink)}
+dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 16px;margin:12px 0}dt{color:var(--soft)}dd{margin:0;font-weight:600}
+.key{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.key li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;color:var(--soft)}
+.sw{width:22px;height:14px;border-radius:3px;margin-top:5px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;border-radius:0;min-height:40px}
+.subs{display:flex;flex-wrap:wrap;gap:8px;max-width:1400px;margin:12px auto 0}
+.subs button{display:inline-flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
+.lb.sub{font-weight:700;color:#fff;border-color:transparent}
+.lb.ifc{font-size:11px;font-weight:600;background:var(--panel)}
+.cmp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;max-width:1400px;margin:0 auto}
+.cmp ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.cmp li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;color:var(--soft)}
+.cmp li .dot{margin-top:6px}
+@media(max-width:760px){.cmp{grid-template-columns:minmax(0,1fr)}}
+.hint{font-size:14px;color:var(--soft);margin:10px auto 0;max-width:1400px}
+#nogl{display:none;position:absolute;inset:0;place-items:center;padding:24px;text-align:center;color:var(--soft)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.rbdc{max-width:1400px;margin:14px auto 0}
+.rbdh{display:flex;flex-wrap:wrap;gap:6px 24px;align-items:baseline;justify-content:space-between}
+#rbdMsg{margin:0;font-weight:600;color:var(--ok);max-width:80ch}#rbdMsg.bad{color:var(--red)}#rbdMsg.warn{color:light-dark(#9a5d00,var(--amber))}
+.rbdw{overflow-x:auto;margin-top:10px}#rbd{display:block;width:100%;min-width:620px;height:auto}
+#rbd .ln{fill:none;stroke:var(--line);stroke-width:3;stroke-dasharray:6 6}
+#rbd .ln.on{stroke:var(--teal);stroke-dasharray:12 8;animation:dash 1.1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-20}}
+#rbd .term{fill:var(--ink)}#rbd .tl{fill:var(--soft);font:400 15px Inter,Arial,sans-serif}
+#rbd .blk{cursor:pointer}#rbd .blk rect{fill:var(--panel);stroke:var(--ink);stroke-width:2}#rbd .blk text{fill:var(--ink);font:700 19px Inter,Arial,sans-serif}
+#rbd .blk .tag{font:600 13px Inter,Arial,sans-serif;fill:light-dark(#9a5d00,var(--amber))}
+#rbd .blk:focus-visible{outline:none}#rbd .blk:focus-visible rect{stroke:var(--amber);stroke-width:4}
+#rbd .blk.fail rect{fill:var(--red);stroke:var(--red)}#rbd .blk.fail text{fill:#fff}
+#rbd .blk.open rect{stroke:var(--amber);stroke-width:3;stroke-dasharray:7 4}
+.rbdn{color:var(--soft);font-size:14px;margin:10px 0 0;max-width:110ch}
+@media(prefers-reduced-motion:reduce){#rbd .ln.on{animation:none}}
+@media(max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}.stage{height:62vh}.lb{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.lb{transition:none}}
+</style>
+</head>
+<body>
+<header class="band head">
+  <h1>Estação de bombeamento: fronteira e interfaces de serviço</h1>
+  <p>Módulo 1, PR 1.1. O que está dentro da linha tracejada é o sistema modelado; o que está fora é supra-sistema e entra como condição de contorno.</p>
+</header>
+<main>
+<div class="band" style="padding-top:0">
+  <div class="tools">
+      <button data-view="geral" aria-pressed="true">Visão geral</button>
+      <button data-view="hid" aria-pressed="false">Fronteira hidráulica</button>
+      <button data-view="ele" aria-pressed="false">Fronteira elétrica</button>
+      <button data-view="srv" aria-pressed="false">Interface de serviço</button>
+      <div class="seg" role="group" aria-label="Camada"><button data-layer="sis" aria-pressed="true">Sistema</button><button data-layer="func" aria-pressed="false">Subsistemas por função</button><button data-layer="tec" aria-pressed="false">Subsistemas por tecnologia</button></div>
+      <label class="chip"><input type="checkbox" id="tFront" checked> Fronteira</label>
+      <label class="chip"><input type="checkbox" id="tSupra" checked> Supra-sistema</label>
+      <label class="chip"><input type="checkbox" id="tLab" checked> Rótulos</label>
+      <label class="chip"><input type="checkbox" id="tFlow" checked> Fluxos</label>
+    </div>
+  <div class="stage" id="stage">
+    <canvas id="c" aria-label="Modelo 3D da estação de bombeamento com fronteira e interfaces"></canvas>
+    <div id="labels"></div>
+    <div id="nogl">O seu navegador não exibe gráficos 3D (WebGL). Tente outro navegador ou computador.</div>
+  </div>
+  <div class="status">
+      <div class="pill ok" id="st" aria-live="polite">Estação cumprindo a função<small>Vazão no coletor ≥ Q<sub>min</sub></small></div>
+      <button id="reset">Reparar tudo</button>
+    </div>
+  <div class="card rbdc">
+    <div class="rbdh"><h2>Diagrama de blocos sincronizado</h2><p id="rbdMsg" aria-live="polite"></p></div>
+    <div class="rbdw"><svg id="rbd" viewBox="0 0 980 215" role="img" aria-label="Diagrama de blocos da estação: F, CCM e VR em série com o paralelo de dois trens M, B, V. Os caminhos íntegros aparecem destacados."></svg></div>
+    <p class="rbdn">As setas do diagrama dão o sentido de leitura do caminho de sucesso, da entrada para a saída: é a referência para enumerar caminhos mínimos sem repeti-los. Não são o fluxo de água. A água não passa pelo CCM, e ele está em série; a energia se divide para os dois motores, e o CCM não vira paralelo.</p>
+  </div>
+  <div class="subs" id="subs" hidden></div>
+  <p class="hint">Arraste para girar, use a roda ou o gesto de pinça para aproximar. Clique num equipamento, aqui ou no diagrama de blocos, para ver a ficha e marcá-lo como falhado; as válvulas de retenção têm dois modos de falha. Na camada de subsistemas, clique no nome de um subsistema para ver a fronteira, o serviço e o critério de falha.</p>
+</div>
+<section class="band grid" style="padding-top:0">
+  <div class="card" id="info">
+    <h2 id="iName">Clique num equipamento</h2>
+    <p id="iDesc">A ficha mostra a que subsistema ele pertence, se está dentro ou fora da fronteira e o bloco correspondente no diagrama de blocos.</p>
+    <dl id="iDl"></dl>
+    <div class="btns"><button id="iBtn" hidden>Marcar como falhado</button><button id="iBtn2" hidden>Travada aberta</button></div>
+  </div>
+  <div class="card">
+    <h2>Como ler a fronteira</h2>
+    <ul class="key" style="margin-top:14px">
+      <li><span class="sw" style="background:var(--amber)"></span><span><b>Fronteira hidráulica:</b> do flange de sucção, depois da bacia da torre, ao flange de descarga no coletor.</span></li>
+      <li><span class="sw" style="background:var(--amber);opacity:.6"></span><span><b>Fronteira elétrica:</b> do barramento do CCM aos terminais dos motores. A subestação fica fora.</span></li>
+      <li><span class="sw" style="background:var(--teal)"></span><span><b>Interface de serviço:</b> o coletor de descarga, onde se medem a vazão e a pressão entregues aos trocadores. É ali que a falha da estação é definida e medida.</span></li>
+      <li><span class="sw" style="background:#7fd6f5;border-radius:50%;width:14px;height:14px;margin-left:4px"></span><span><b>Fluxo de água:</b> da bacia ao coletor. Para quando falta caminho hidráulico e inverte no trem parado com a retenção travada aberta.</span></li>
+      <li><span class="sw" style="background:#ffc23d;width:14px;height:14px;margin-left:4px"></span><span><b>Fluxo de energia:</b> do barramento ao CCM e aos terminais dos motores. Fisicamente se divide; no diagrama de blocos, o CCM fica em série.</span></li>
+      <li><span class="sw" style="background:#b07cf0"></span><span><b>Torque:</b> a cruz gira no acoplamento motor–bomba enquanto o trem tem energia e motor e bomba íntegros. A animação não modela a proteção que desligaria o motor.</span></li>
+      <li><span class="sw" style="background:var(--line)"></span><span><b>Supra-sistema:</b> torre de resfriamento, rede elétrica interna e trocadores da máquina de papel. Uma falha lá para a estação, mas não conta como falha da estação.</span></li>
+    </ul>
+    <p style="margin-top:14px">Critério de sucesso: filtro, CCM e válvula reguladora funcionando e pelo menos um trem motor–bomba–válvula funcionando. R<sub>S</sub>(1 ano) = 0,9240.</p>
+  </div>
+</section>
+<section class="band" style="padding-top:0">
+  <h2 style="max-width:1400px;margin:0 auto 14px">As duas decomposições lado a lado</h2>
+  <div class="cmp">
+    <div class="card"><h3>Por função: para a confiabilidade</h3><p>Cada subsistema tem uma interface de serviço única e vira um bloco do diagrama de blocos.</p><ul id="cmpF"></ul></div>
+    <div class="card"><h3>Por tecnologia: para a manutenção (PR 1.1)</h3><p>Organiza oficina, peças e equipe. Não tem interface de serviço única por subsistema, então não vira bloco.</p><ul id="cmpT"></ul></div>
+  </div>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+{
+const P = {
+  F:{n:'Filtro (F)',sub:'Tubulação, válvulas e filtros',inside:true,r:0.98,rbd:'Bloco em série',d:'Remove sólidos da água de sucção. Obstruído, reduz a vazão: falha dentro da fronteira.'},
+  CCM:{n:'Centro de controle de motores (CCM)',sub:'CCM e acionamentos',inside:true,r:0.97,rbd:'Bloco em série',d:'Alimenta e comanda os dois motores. Ponto único de falha: maior contribuição ao risco (38 %).'},
+  VR:{n:'Válvula reguladora (VR)',sub:'Tubulação, válvulas e filtros',inside:true,r:0.99,rbd:'Bloco em série',d:'Ajusta a vazão entregue ao coletor.'},
+  M1:{n:'Motor do trem 1',sub:'Motobombas',inside:true,r:0.95,rbd:'Trem 1 (paralelo com o trem 2)',d:'Weibull com desgaste (β = 1,5).'},
+  B1:{n:'Bomba do trem 1',sub:'Motobombas',inside:true,r:0.92,rbd:'Trem 1 (paralelo com o trem 2)',d:'W(2; 30 337 h): R(1 ano) = 0,920.'},
+  V1:{n:'Válvula de retenção do trem 1',sub:'Tubulação, válvulas e filtros',inside:true,r:0.99,rbd:'Trem 1 (paralelo com o trem 2). O bloco representa só a falha fechada; a falha aberta fica fora do diagrama do livro',d:'Impede o refluxo pelo trem parado. Dois modos de falha com consequências opostas: travada fechada (o trem para) e travada aberta (refluxo quando o trem 1 para).'},
+  M2:{n:'Motor do trem 2',sub:'Motobombas',inside:true,r:0.95,rbd:'Trem 2 (paralelo com o trem 1)',d:'Weibull com desgaste (β = 1,5).'},
+  B2:{n:'Bomba do trem 2',sub:'Motobombas',inside:true,r:0.92,rbd:'Trem 2 (paralelo com o trem 1)',d:'W(2; 30 337 h): R(1 ano) = 0,920.'},
+  V2:{n:'Válvula de retenção do trem 2',sub:'Tubulação, válvulas e filtros',inside:true,r:0.99,rbd:'Trem 2 (paralelo com o trem 1). O bloco representa só a falha fechada; a falha aberta fica fora do diagrama do livro',d:'Impede o refluxo pelo trem parado. Dois modos de falha com consequências opostas: travada fechada (o trem para) e travada aberta (refluxo quando o trem 2 para).'},
+  FT:{n:'Medição de vazão e pressão no coletor',sub:'Instrumentação e controle',inside:true,r:null,rbd:'Não modelado no RBD',d:'Fica na interface de serviço: é onde se verifica se a vazão está acima de Q_min.'},
+  TORRE:{n:'Torre de resfriamento e bacia',sub:'Supra-sistema',inside:false,r:null,rbd:'Fora do modelo',d:'Fornece a água. Nível baixo ou água acima de 35 °C é condição de contorno, não falha da estação.'},
+  SUB:{n:'Subestação e rede elétrica interna',sub:'Supra-sistema',inside:false,r:null,rbd:'Fora do modelo',d:'Falta de energia para a estação, mas é condição externa: não entra na estatística de falhas da estação.'},
+  TROC:{n:'Trocadores de calor da máquina de papel',sub:'Supra-sistema (processo consumidor)',inside:false,r:null,rbd:'Fora do modelo',d:'O usuário do serviço. Define o requisito: vazão mínima Q_min na pressão de projeto.'}
+};
+const failed = {};
+const canvas = document.getElementById('c'), stage = document.getElementById('stage');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({canvas, antialias:true}); } catch(e) { document.getElementById('nogl').style.display='grid'; }
+if (renderer) {
+const css = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const ctl = new THREE.OrbitControls(cam, canvas);
+ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI*0.49; ctl.minDistance = 8; ctl.maxDistance = 90;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(10, 20, 14); scene.add(sun);
+const mat = c => new THREE.MeshStandardMaterial({color:c, roughness:0.55, metalness:0.15});
+const C = {water:0x2F8FB5, pipe:0x7d97a0, motor:0x0E6F80, pump:0x3a6f9a, valve:0x55707a, ccm:0xb8c4c8, supra:0xa9b6ba, amber:0xE39B2D, red:0xd2483a};
+const pick = [], groups = {}, labelPos = {};
+function grp(id, pos){ const g = new THREE.Group(); g.position.set(...pos); g.userData.id = id; scene.add(g); groups[id]=g; return g; }
+function add(g, geo, color, p=[0,0,0], rot){ const m = new THREE.Mesh(geo, mat(color)); m.position.set(...p); if(rot) m.rotation.set(...rot); m.userData.id = g.userData.id; m.userData.base = color; g.add(m); pick.push(m); return m; }
+function pipe(a, b, r=0.28, color=C.pipe, parent=scene){
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), L = A.distanceTo(B);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 20), mat(color));
+  m.position.copy(A).add(B).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), B.clone().sub(A).normalize()); parent.add(m); return m;
+}
+// ground
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 50), new THREE.MeshStandardMaterial({color:0xdfe7e9, roughness:1}));
+ground.rotation.x = -Math.PI/2; scene.add(ground);
+// --- supra-sistema
+const supra = new THREE.Group(); scene.add(supra);
+{ const g = grp('TORRE',[-17,0,0]); supra.add(g);
+  add(g, new THREE.CylinderGeometry(4.2,4.2,0.9,40), C.supra, [0,0.45,0]);
+  add(g, new THREE.CylinderGeometry(3.6,3.6,0.2,40), C.water, [0,0.85,0]);
+  add(g, new THREE.CylinderGeometry(2.2,3.4,6,32,1,true), C.supra, [0,4,0]);
+  labelPos.TORRE=[-17,7.6,0]; }
+{ const g = grp('SUB',[-3,0,-13]); supra.add(g);
+  add(g, new THREE.BoxGeometry(5,2.6,2.4), C.supra, [0,1.3,0]);
+  for (const x of [-1.5,0,1.5]) add(g, new THREE.CylinderGeometry(0.15,0.15,1.2,10), 0x8a9aa0, [x,3.2,0]);
+  labelPos.SUB=[-3,4.6,-13]; }
+{ const g = grp('TROC',[16,0,0]); supra.add(g);
+  for (const z of [-1.6,1.6]) add(g, new THREE.CylinderGeometry(1,1,6,28), C.supra, [0,1.6,z], [0,0,Math.PI/2]);
+  labelPos.TROC=[16,4.2,0]; }
+pipe([-12.8,0.9,0],[-10,0.9,0],0.3,C.water,supra);          // bacia -> flange de sucção
+pipe([10,0.9,0],[13,0.9,0],0.3,C.water,supra);              // flange de descarga -> trocadores
+pipe([-3,1.6,-11.8],[-3,1.6,-6],0.12,0x3d4c52,supra);       // cabo subestação -> barramento
+// --- sistema
+pipe([-10,0.9,0],[-8.4,0.9,0],0.3,C.water);
+{ const g = grp('F',[-7.5,0,0]); add(g,new THREE.CylinderGeometry(0.8,0.8,2.2,28),C.valve,[0,1.1,0]); add(g,new THREE.SphereGeometry(0.8,24,12,0,Math.PI*2,0,Math.PI/2),C.valve,[0,2.2,0]); labelPos.F=[-7.5,3.6,0]; }
+pipe([-6.7,0.9,0],[-5,0.9,0],0.3,C.water); pipe([-5,0.9,-3.8],[-5,0.9,3.8],0.3,C.water);
+pipe([4.2,0.9,-2.6],[4.2,0.9,2.6],0.3,C.water);
+for (const [k,z] of [['1',-2.6],['2',2.6]]) {
+  { const zs = z*3.8/2.6, zp = z + Math.sign(z)*0.45; pipe([-5,0.9,zs],[-0.6,0.9,zs],0.25,C.water); pipe([-0.6,0.9,zs],[-0.6,0.9,zp],0.25,C.water);
+    for (const q of [[-5,0.9,zs],[-0.6,0.9,zs]]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.27,16,10), mat(C.water)); e.position.set(...q); scene.add(e); } }
+  { const g = grp('M'+k,[-3,0,z]); add(g,new THREE.CylinderGeometry(0.75,0.75,2.2,28),C.motor,[0,0.95,0],[0,0,Math.PI/2]); add(g,new THREE.BoxGeometry(2.2,0.3,1.4),0x3d4c52,[0,0.15,0]); labelPos['M'+k]=[-3.2,2.5,z]; }
+  { const g = grp('B'+k,[-0.6,0,z]); add(g,new THREE.CylinderGeometry(0.95,0.95,0.9,28),C.pump,[0,0.95,0],[Math.PI/2,0,0]); add(g,new THREE.BoxGeometry(1.6,0.3,1.4),0x3d4c52,[0,0.15,0]); labelPos['B'+k]=[-0.6,2.6,z]; }
+  pipe([-1.85,0.95,z],[-1.5,0.95,z],0.12,0x3d4c52);
+  pipe([0.4,0.9,z],[1.5,0.9,z],0.25,C.water);
+  { const g = grp('V'+k,[2.1,0,z]); add(g,new THREE.SphereGeometry(0.5,20,14),C.valve,[0,0.9,0]); add(g,new THREE.BoxGeometry(0.2,0.9,0.2),C.valve,[0,1.5,0]); labelPos['V'+k]=[2.1,2.6,z]; }
+  pipe([2.6,0.9,z],[4.2,0.9,z],0.25,C.water);
+}
+pipe([4.2,0.9,0],[5,0.9,0],0.3,C.water);
+{ const g = grp('VR',[5.7,0,0]); add(g,new THREE.SphereGeometry(0.65,20,14),C.valve,[0,0.9,0]); add(g,new THREE.CylinderGeometry(0.5,0.5,0.5,20),0x8a9aa0,[0,2.1,0]); add(g,new THREE.BoxGeometry(0.15,0.8,0.15),C.valve,[0,1.5,0]); labelPos.VR=[5.7,3.2,0]; }
+pipe([6.4,0.9,0],[10,0.9,0],0.3,C.water);
+{ const g = grp('FT',[8.2,0,0]); add(g,new THREE.BoxGeometry(0.15,1,0.15),0x3d4c52,[0,1.6,0]); add(g,new THREE.BoxGeometry(0.6,0.5,0.5),C.motor,[0,2.3,0]); labelPos.FT=[8.2,3.3,0]; }
+{ const g = grp('CCM',[-3,0,-5]); add(g,new THREE.BoxGeometry(3.4,2.8,1.2),C.ccm,[0,1.4,0]); for (const x of [-1,0,1]) add(g,new THREE.BoxGeometry(0.9,2.2,0.05),0x9aa8ad,[x,1.4,0.63]); labelPos.CCM=[-3,3.6,-5]; }
+pipe([-3,0.25,-4.4],[-3,0.25,-2.6],0.07,0x3d4c52); pipe([-3,0.25,-4.4],[-4.5,0.25,-4.4],0.07,0x3d4c52); pipe([-4.5,0.25,-4.4],[-4.5,0.25,2.6],0.07,0x3d4c52); pipe([-4.5,0.25,2.6],[-3.8,0.25,2.6],0.07,0x3d4c52);
+pipe([-3,1.6,-6],[-3,1.6,-5.6],0.12,0x3d4c52);
+
+// --- fluxos de serviço: água, energia elétrica e torque
+const FLOW = {water:{c:0x7fd6f5, h:0.36, gap:0.75, v:2.2}, elec:{c:0xffc23d, h:0.16, gap:0.55, v:3.2}};
+const flowsG = new THREE.Group(); scene.add(flowsG);
+const flowsSupra = new THREE.Group(); supra.add(flowsSupra);
+const paths = {};
+function flowPath(id, kind, pts, parent=flowsG){
+  const K = FLOW[kind], V = pts.map(q => new THREE.Vector3(q[0], q[1]+K.h, q[2]));
+  const lens = []; let tot = 0; for (let i=1;i<V.length;i++){ const l = V[i].distanceTo(V[i-1]); lens.push(l); tot += l; }
+  const g = new THREE.Group(); parent.add(g);
+  const geo = kind==='water' ? new THREE.SphereGeometry(0.12,12,8) : new THREE.BoxGeometry(0.14,0.14,0.14);
+  const mtl = new THREE.MeshBasicMaterial({color:K.c});
+  const n = Math.max(2, Math.round(tot/K.gap)), beads = [];
+  for (let i=0;i<n;i++){ const m = new THREE.Mesh(geo, mtl); g.add(m); beads.push(m); }
+  let li = 0; for (let i=1;i<lens.length;i++) if (lens[i]>lens[li]) li = i;
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.2,0.5,14), mtl); g.add(cone);
+  const P0 = {id, kind, V, lens, tot, g, beads, cone, li, dir:1, on:false, ph:Math.random()*tot};
+  paths[id] = P0; return P0;
+}
+function at3(P0, d){ d = ((d % P0.tot) + P0.tot) % P0.tot; for (let i=0;i<P0.lens.length;i++){ if (d <= P0.lens[i]) return P0.V[i].clone().lerp(P0.V[i+1], d/P0.lens[i]); d -= P0.lens[i]; } return P0.V[P0.V.length-1].clone(); }
+function aim(P0){ const a = P0.V[P0.li], b = P0.V[P0.li+1]; P0.cone.position.copy(a).add(b).multiplyScalar(0.5);
+  const dir = b.clone().sub(a).normalize().multiplyScalar(P0.dir); P0.cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir); }
+flowPath('wIn','water',[[-12.8,0.9,0],[-10,0.9,0]], flowsSupra);
+flowPath('wF','water',[[-10,0.9,0],[-5,0.9,0]]);
+for (const [k,z] of [['1',-2.6],['2',2.6]]) {
+  const zs = z*3.8/2.6;
+  flowPath('wS'+k,'water',[[-5,0.9,0],[-5,0.9,zs],[-0.6,0.9,zs],[-0.6,0.9,z]]);
+  flowPath('wD'+k,'water',[[-0.6,0.9,z],[4.2,0.9,z],[4.2,0.9,0]]);
+}
+flowPath('wOut','water',[[4.2,0.9,0],[10,0.9,0]]);
+flowPath('wTroc','water',[[10,0.9,0],[13,0.9,0]], flowsSupra);
+flowPath('eSub','elec',[[-3,1.6,-11.8],[-3,1.6,-6],[-3,1.6,-5.6]], flowsSupra);
+flowPath('eM1','elec',[[-3,0.25,-4.4],[-3,0.25,-2.6]]);
+flowPath('eM2','elec',[[-3,0.25,-4.4],[-4.5,0.25,-4.4],[-4.5,0.25,2.6],[-3.8,0.25,2.6]]);
+const torque = {};
+for (const [k,z] of [['1',-2.6],['2',2.6]]) {
+  const g = new THREE.Group(); g.position.set(-1.68,0.95,z); flowsG.add(g);
+  const m = new THREE.MeshBasicMaterial({color:0xb07cf0});
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.08,1.3,0.16), m)); g.add(new THREE.Mesh(new THREE.BoxGeometry(0.08,0.16,1.3), m));
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.14,0.32,12), m); tip.position.set(0,0.65,0.18); tip.rotation.x = Math.PI/2; g.add(tip);
+  torque[k] = {g, on:false};
+}
+let flowsOn = true;
+// --- fronteira (caixa tracejada) e marcos de interface
+const front = new THREE.Group(); scene.add(front);
+const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(20,5,12)), new THREE.LineDashedMaterial({color:C.amber, dashSize:0.6, gapSize:0.35}));
+box.position.set(0,2.5,0); box.computeLineDistances(); front.add(box);
+const veil = new THREE.Mesh(new THREE.BoxGeometry(20,5,12), new THREE.MeshBasicMaterial({color:C.amber, transparent:true, opacity:0.05, depthWrite:false})); veil.position.copy(box.position); front.add(veil);
+const rings = [];
+function ring(p, axis, color, r=0.55){ const m = new THREE.Mesh(new THREE.TorusGeometry(r,0.08,12,40), new THREE.MeshBasicMaterial({color})); m.position.set(...p); if(axis==='x') m.rotation.y = Math.PI/2; if(axis==='z') m.rotation.x = 0; front.add(m); rings.push(m); return m; }
+ring([-10,0.9,0],'x',C.amber); ring([10,0.9,0],'x',0x0E6F80,0.7); ring([-3,1.6,-6],'z',C.amber,0.35);
+labelPos.FLS=[-10,2.2,0]; labelPos.FLD=[10,2.6,0]; labelPos.BAR=[-3,0.7,-6.2];
+// --- subsistemas
+const SUBS = {
+ func:[
+  {id:'f_fil',n:'Filtragem',col:'#7b5cc4',box:[[-9.95,-6.45,0.05,3.2,-1.3,1.3]],c:['F'],fr:'Do flange de sucção à saída do filtro',sv:'Água filtrada, com perda de carga abaixo do limite',us:'Os dois trens',cf:'Obstrução que compromete a sucção das bombas, ou passagem de sólidos',rbd:'F, em série'},
+  {id:'f_t1',n:'Trem 1',col:'#1f9e89',box:[[-4.75,3.95,0.05,2.9,-4.1,-1.5]],c:['M1','B1','V1'],fr:'Do header de sucção ao header de descarga; terminais do motor M1',sv:'Vazão ≥ Q_min na pressão de projeto, sem refluxo',us:'Header de descarga',cf:'Vazão abaixo de Q_min, ou refluxo pelo trem parado',rbd:'M1–B1–V1, em paralelo com o trem 2. Hipótese do livro: a retenção V1 só falha fechada. A falha aberta (refluxo com o trem 1 parado) não cabe no série-paralelo: {M1, V1 aberta} é um corte de 2.ª ordem, e R<sub>S</sub> = 0,9240 é ligeiramente otimista'},
+  {id:'f_t2',n:'Trem 2',col:'#3c7fd1',box:[[-4.75,3.95,0.05,2.9,1.5,4.1]],c:['M2','B2','V2'],fr:'Do header de sucção ao header de descarga; terminais do motor M2',sv:'Vazão ≥ Q_min na pressão de projeto, sem refluxo',us:'Header de descarga',cf:'Vazão abaixo de Q_min, ou refluxo pelo trem parado',rbd:'M2–B2–V2, em paralelo com o trem 1. Hipótese do livro: a retenção V2 só falha fechada. A falha aberta (refluxo com o trem 2 parado) não cabe no série-paralelo: {M2, V2 aberta} é um corte de 2.ª ordem, e R<sub>S</sub> = 0,9240 é ligeiramente otimista'},
+  {id:'f_ccm',n:'Alimentação e comando',col:'#d1495b',box:[[-5,-1,0.05,3.3,-5.85,-4.15]],c:['CCM'],fr:'Do barramento do CCM aos terminais dos motores e aos sinais de comando',sv:'440 V ± 10 % e comando de partida e parada',us:'Motores dos dois trens',cf:'Perda de tensão ou de comando',rbd:'CCM, em série; suporte comum aos dois trens (evento repetido na árvore de falhas)'},
+  {id:'f_reg',n:'Regulação',lp:[5.7,2.95,0],col:'#c0832a',box:[[4.55,9.95,0.05,2.6,-1.1,1.1]],c:['VR'],fr:'Do header de descarga ao coletor',sv:'Vazão ajustada ao valor desejado, entregue no coletor',us:'Trocadores de calor: a mesma interface de serviço do sistema',cf:'Vazão fora do ajuste',rbd:'VR, em série; a saída herda a interface do sistema'},
+  {id:'f_med',n:'Medição e controle',lp:[8.4,3.95,0],col:'#6b7a83',box:[[7.7,8.7,1.0,2.8,-0.5,0.5]],c:['FT'],fr:'Transmissores no coletor e sinais até o CCM e a VR',sv:'Medida de vazão e pressão e sinal de ajuste',us:'VR, CCM e operação',cf:'Medida errada ou sinal ausente',rbd:'Subsistema de suporte; fora do diagrama de blocos do livro'}],
+ tec:[
+  {id:'t_mb',n:'Motobombas',col:'#1f9e89',box:[[-4.3,0.55,0.05,2.8,-3.5,-1.7],[-4.3,0.55,0.05,2.8,1.7,3.5]],c:['M1','B1','M2','B2'],fr:'Motores e bombas dos dois trens',sv:'Não há interface única: cada motobomba entrega ao seu trem',us:'—',cf:'Falha de motor ou de bomba, registrada por equipamento',rbd:'M e B estão nos dois ramos do paralelo: não forma um bloco'},
+  {id:'t_ccm',n:'CCM e acionamentos',col:'#d1495b',box:[[-5,-1,0.05,3.3,-5.85,-4.15]],c:['CCM'],fr:'Do barramento do CCM aos terminais dos motores',sv:'Tensão e comando aos motores',us:'Motores dos dois trens',cf:'Perda de tensão ou de comando',rbd:'CCM, em série (coincide com a divisão funcional)'},
+  {id:'t_ic',n:'Instrumentação e controle',lp:[8.4,3.95,0],col:'#6b7a83',box:[[7.7,8.7,1.0,2.8,-0.5,0.5]],c:['FT'],fr:'Transmissores e malhas de controle',sv:'Medidas e sinais',us:'VR, CCM e operação',cf:'Medida errada ou sinal ausente',rbd:'Fora do diagrama de blocos do livro'},
+  {id:'t_tub',n:'Tubulação, válvulas e filtros',col:'#7b5cc4',box:[[-9.95,-6.45,0.05,3.2,-1.3,1.3],[1.45,2.75,0.05,2.6,-3.3,-1.9],[1.45,2.75,0.05,2.6,1.9,3.3],[4.95,6.45,0.05,2.8,-0.9,0.9]],c:['F','V1','V2','VR'],fr:'Toda a tubulação, o filtro e as válvulas',sv:'Não há interface única: as partes servem a subsistemas diferentes',us:'—',cf:'Vazamento, obstrução ou válvula que não opera',rbd:'F e VR em série com V1 e V2 dentro do paralelo: não forma um bloco'}]
+};
+const IFC = [
+  {n:'Saída do filtro',p:[-6.45,0.9,0],ax:'x'},{n:'Entrada T1',p:[-4.75,0.9,-3.8],ax:'x'},{n:'Saída T1',p:[3.95,0.9,-2.6],ax:'x'},
+  {n:'Entrada T2',p:[-4.75,0.9,3.8],ax:'x',lp:[-5.4,0.2,4.8]},{n:'Saída T2',p:[3.95,0.9,2.6],ax:'x'},{n:'Terminais M1',p:[-3,0.25,-4.1],ax:'z'},
+  {n:'Terminais M2',p:[-4.5,0.25,1.5],ax:'z'},{n:'Entrada da VR',p:[4.55,0.9,0],ax:'x'}];
+const subG = {func:new THREE.Group(), tec:new THREE.Group()}, subBox = {}, xl = [];
+for (const k of ['func','tec']) { scene.add(subG[k]); subG[k].visible = false;
+  for (const S of SUBS[k]) { subBox[S.id] = [];
+    for (const [x0,x1,y0,y1,z0,z1] of S.box) {
+      const geo = new THREE.BoxGeometry(x1-x0, y1-y0, z1-z0), c = new THREE.Color(S.col);
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineDashedMaterial({color:c, dashSize:0.35, gapSize:0.2}));
+      const v = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:c, transparent:true, opacity:0.08, depthWrite:false}));
+      for (const o of [e,v]) { o.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2); subG[k].add(o); }
+      e.computeLineDistances(); subBox[S.id].push(v); }
+    const [x0,x1,,y1,z0,z1] = S.box[0];
+    const d = document.createElement('div'); d.className = 'lb sub'; d.style.background = S.col; d.textContent = S.n;
+    xl.push({el:d, pos:S.lp || [(x0+x1)/2, y1+0.35, (z0+z1)/2], vis:() => subG[k].visible}); }
+}
+for (const I of IFC) { const m = new THREE.Mesh(new THREE.TorusGeometry(0.42,0.07,10,32), new THREE.MeshBasicMaterial({color:0x12303A}));
+  m.position.set(...I.p); if (I.ax==='x') m.rotation.y = Math.PI/2; else m.rotation.x = 0; subG.func.add(m);
+  const d = document.createElement('div'); d.className = 'lb ifc'; d.textContent = I.n; xl.push({el:d, pos:I.lp || [I.p[0], I.p[1]+0.9, I.p[2]], vis:() => subG.func.visible}); }
+let layer = 'sis', selSub = null;
+function setLayer(L){ layer = L; subG.func.visible = L==='func'; subG.tec.visible = L==='tec';
+  box.material.opacity = L==='sis' ? 1 : 0.35; box.material.transparent = L!=='sis'; veil.visible = L==='sis';
+  document.querySelectorAll('[data-layer]').forEach(b => b.setAttribute('aria-pressed', b.dataset.layer===L));
+  const box2 = document.getElementById('subs'); box2.hidden = L==='sis';
+  box2.innerHTML = L==='sis' ? '' : SUBS[L].map(S => `<button data-sub="${S.id}"><span class="dot" style="background:${S.col}"></span>${S.n}</button>`).join('');
+  box2.querySelectorAll('[data-sub]').forEach(b => b.addEventListener('click', () => showSub(b.dataset.sub)));
+  selSub = null; hl(); go(L==='sis' ? 'geral' : 'sub'); }
+function hl(){ for (const id in subBox) for (const v of subBox[id]) v.material.opacity = id===selSub ? 0.28 : 0.08; }
+function showSub(id){ const S = [...SUBS.func, ...SUBS.tec].find(x => x.id===id); selSub = id; sel = null; hl();
+  document.getElementById('iName').textContent = 'Subsistema: ' + S.n;
+  document.getElementById('iDesc').textContent = layer==='func' ? 'Divisão por função: a que serve à modelagem de confiabilidade.' : 'Divisão por tecnologia (PR 1.1): a que organiza a manutenção.';
+  document.getElementById('iDl').innerHTML = [['Fronteira',S.fr],['Serviço na interface',S.sv],['Usuário (interno)',S.us],['Falha do subsistema',S.cf],['No diagrama de blocos',S.rbd],['Componentes',S.c.join(', ')]].map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  document.getElementById('iBtn').hidden = true; document.getElementById('iBtn2').hidden = true; document.getElementById('info').scrollIntoView({block:'nearest', behavior:'smooth'}); }
+document.querySelectorAll('[data-layer]').forEach(b => b.addEventListener('click', () => setLayer(b.dataset.layer)));
+const subOf = (k, id) => (SUBS[k].find(S => S.c.includes(id)) || {}).n || '—';
+document.getElementById('cmpF').innerHTML = SUBS.func.map(S => `<li><span class="dot" style="background:${S.col}"></span><span><b>${S.n}</b>: ${S.rbd}</span></li>`).join('');
+document.getElementById('cmpT').innerHTML = SUBS.tec.map(S => `<li><span class="dot" style="background:${S.col}"></span><span><b>${S.n}</b>: ${S.rbd}</span></li>`).join('');
+// --- rótulos HTML
+const LBL = {F:'F',CCM:'CCM',VR:'VR',M1:'M1',B1:'B1',V1:'V1',M2:'M2',B2:'B2',V2:'V2',FT:'Vazão e pressão',TORRE:'Torre de resfriamento',SUB:'Subestação',TROC:'Trocadores de calor',FLS:'Flange de sucção',FLD:'Interface de serviço: coletor',BAR:'Barramento do CCM'};
+const labels = document.getElementById('labels'), lel = {};
+for (const [k,t] of Object.entries(LBL)) { const d = document.createElement('div'); d.className = 'lb' + (P[k] && !P[k].inside ? ' out' : '') + (['FLS','BAR'].includes(k)?' int':'')+(k==='FLD'?' srv':''); d.textContent = t; labels.appendChild(d); lel[k]=d; }
+for (const x of xl) labels.appendChild(x.el);
+// --- câmera e vistas
+const VIEWS = { geral:{p:[13,16,23],t:[0,1,0]}, hid:{p:[0,7,22],t:[0,1,0]}, ele:{p:[-19,13,-17],t:[-3,1,-4]}, srv:{p:[14,5,7],t:[8.5,1.2,0]}, sub:{p:[4,13,15],t:[-0.5,1,0]} };
+let fly = null;
+const far = () => cam.aspect < 1 ? 2.8 : cam.aspect < 1.4 ? 1.4 : 1;
+const at = V => { const t = new THREE.Vector3(...V.t); return [new THREE.Vector3(...V.p).sub(t).multiplyScalar(far()).add(t), t]; };
+let cur = 'geral';
+function go(v){ cur = v; const [p1,t1] = at(VIEWS[v]); fly = {p0:cam.position.clone(), t0:ctl.target.clone(), p1, t1, k:0};
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) fly.k = 1;
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view===v)); }
+
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => go(b.dataset.view)));
+document.getElementById('tFront').addEventListener('change', e => front.visible = e.target.checked);
+document.getElementById('tSupra').addEventListener('change', e => { supra.visible = e.target.checked; draw(); });
+document.getElementById('tLab').addEventListener('change', e => labels.style.display = e.target.checked ? '' : 'none');
+document.getElementById('tFlow').addEventListener('change', e => { flowsOn = e.target.checked; flowsG.visible = flowsOn; flowsSupra.visible = flowsOn; });
+// --- lógica de sucesso
+const dn = id => !!failed[id] && failed[id] !== 'aberta';
+const R = id => dn(id) ? 0 : P[id].r;
+function state(){
+  const power = !failed.SUB && !failed.CCM, ext = failed.TORRE || failed.SUB || failed.TROC;
+  const run = k => power && !dn('M'+k) && !dn('B'+k);
+  const pump = k => run(k) && failed['V'+k] !== 'fechada';
+  let back = null;
+  for (const [j,k] of [['1','2'],['2','1']]) if (failed['V'+j]==='aberta' && !run(j) && pump(k)) back = {j,k};
+  const through = !back && !failed.TORRE && !failed.TROC && !failed.F && !failed.VR && (pump('1') || pump('2'));
+  const trem = k => !dn('M'+k) && !dn('B'+k) && !dn('V'+k);
+  const ser = !dn('F') && !dn('CCM') && !dn('VR');
+  return {power, ext, run, pump, back, through, path:{1:ser && trem('1'), 2:ser && trem('2')}};
+}
+function setFlow(id, on, dir=1){ const P0 = paths[id]; P0.on = on; P0.dir = dir; P0.g.visible = on; aim(P0); }
+function flows(S){
+  setFlow('wIn', S.through); setFlow('wF', S.through); setFlow('wOut', S.through); setFlow('wTroc', S.through);
+  for (const k of ['1','2']) {
+    const fwd = S.through ? S.pump(k) : !!(S.back && S.back.k===k), rev = !!(S.back && S.back.j===k);
+    setFlow('wS'+k, fwd || rev, rev ? -1 : 1); setFlow('wD'+k, fwd || rev, rev ? -1 : 1);
+    setFlow('eM'+k, S.run(k)); torque[k].on = S.run(k);
+  }
+  setFlow('eSub', !failed.SUB);
+}
+function status(S){
+  const ok = S.path[1] || S.path[2];
+  const tr = k => R('M'+k)*R('B'+k)*R('V'+k);
+  const rs = R('F')*R('CCM')*R('VR')*(1-(1-tr(1))*(1-tr(2)));
+  const el = document.getElementById('st'); const fmt = x => x.toFixed(4).replace('.',',');
+  if (!ok) { el.className='pill bad'; el.innerHTML='Falha funcional da estação<small>A causa está dentro da fronteira: conta na estatística de falhas da estação.</small>'; }
+  else if (S.back) { el.className='pill bad'; el.innerHTML='Falha funcional que o diagrama de blocos não prevê<small>A retenção V'+S.back.j+' travada aberta devolve a água do trem '+S.back.k+' para a sucção. O diagrama ainda mostra um caminho de sucesso.</small>'; }
+  else if (S.ext) { el.className='pill ext'; el.innerHTML='Estação parada por condição externa<small>A causa está no supra-sistema: não é falha da estação.</small>'; }
+  else { el.className='pill ok'; el.innerHTML='Estação cumprindo a função<small>R<sub>S</sub>(1 ano) dado o estado marcado: ' + fmt(rs) + (rs<0.924?' (sem falhas: 0,9240)':'') + '</small>'; }
+}
+// --- painel do diagrama de blocos
+const RB = {F:[80,115], CCM:[200,115], VR:[320,115], M1:[480,50], B1:[600,50], V1:[720,50], M2:[480,180], B2:[600,180], V2:[720,180]};
+const LN = {in:[[50,115],[76,115]], fc:[[164,115],[196,115]], cv:[[284,115],[316,115]], vs:[[404,115],[440,115]],
+  s1:[[440,115],[440,50],[476,50]], s2:[[440,115],[440,180],[476,180]], mb1:[[564,50],[596,50]], bv1:[[684,50],[716,50]], mb2:[[564,180],[596,180]], bv2:[[684,180],[716,180]],
+  j1:[[804,50],[840,50],[840,115]], j2:[[804,180],[840,180],[840,115]], out:[[840,115],[948,115]]};
+const NS = 'http://www.w3.org/2000/svg', svg = document.getElementById('rbd');
+const mk = (t, at, par=svg) => { const e = document.createElementNS(NS, t); for (const k in at) e.setAttribute(k, at[k]); par.appendChild(e); return e; };
+{ const d = mk('defs',{});
+  for (const [id,c] of [['aOn','var(--teal)'],['aOff','var(--line)']]) { const m = mk('marker',{id, viewBox:'0 0 10 10', refX:'9', refY:'5', markerWidth:'7', markerHeight:'7', orient:'auto'}, d); mk('path',{d:'M0 0L10 5L0 10z', style:'fill:'+c}, m); } }
+const lnEl = {}; for (const [k,pts] of Object.entries(LN)) lnEl[k] = mk('polyline',{points:pts.map(q=>q.join(',')).join(' '), class:'ln'});
+mk('circle',{cx:42,cy:115,r:8,class:'term'}); mk('circle',{cx:958,cy:115,r:8,class:'term'});
+mk('text',{x:42,y:148,class:'tl','text-anchor':'middle'}).textContent = 'Entrada'; mk('text',{x:958,y:148,class:'tl','text-anchor':'middle'}).textContent = 'Saída';
+const blkEl = {};
+for (const [id,[x,y]] of Object.entries(RB)) { const g = mk('g',{class:'blk', tabindex:'0', role:'button', 'aria-label':P[id].n});
+  mk('rect',{x, y:y-22, width:84, height:44, rx:6}, g); const t = mk('text',{x:x+42, y:y+7, 'text-anchor':'middle'}, g); t.textContent = id;
+  const sub = mk('text',{x:x+42, y:y+40, 'text-anchor':'middle', class:'tag'}, g); blkEl[id] = {g, sub};
+  const go2 = () => { show(id); document.getElementById('info').scrollIntoView({block:'nearest', behavior:'smooth'}); };
+  g.addEventListener('click', go2); g.addEventListener('keydown', e => { if (e.key==='Enter' || e.key===' ') { e.preventDefault(); go2(); } }); }
+function rbd(S){
+  const any = S.path[1] || S.path[2], live = {in:any, fc:any, cv:any, vs:any, out:any};
+  for (const k of ['1','2']) for (const l of ['s','mb','bv','j']) live[l+k] = S.path[k];
+  for (const [k,e] of Object.entries(lnEl)) { e.classList.toggle('on', !!live[k]); if (k!=='j1' && k!=='j2') e.setAttribute('marker-end', live[k] ? 'url(#aOn)' : 'url(#aOff)'); }
+  for (const [id,b] of Object.entries(blkEl)) { b.g.classList.toggle('fail', dn(id)); b.g.classList.toggle('open', failed[id]==='aberta'); b.sub.textContent = failed[id]==='aberta' ? 'aberta' : ''; }
+  const m = document.getElementById('rbdMsg'); let t, cls = '';
+  if (!any) { t = 'Nenhum caminho de sucesso da entrada à saída: o diagrama prevê a falha funcional, como a maquete.'; cls = 'bad'; }
+  else if (S.back) { t = 'O diagrama ainda tem um caminho de sucesso (trem ' + S.back.k + '), mas a maquete mostra a água voltando pelo trem ' + S.back.j + '. A retenção travada aberta não está no diagrama do livro: o corte {' + (dn('M'+S.back.j)?'M':'B') + S.back.j + ', V' + S.back.j + ' aberta} fica de fora.'; cls = 'warn'; }
+  else if (S.ext) { t = 'O diagrama continua íntegro: a parada vem do supra-sistema, que não faz parte do modelo.'; cls = 'warn'; }
+  else if (S.path[1] && S.path[2]) t = 'Os dois caminhos mínimos estão íntegros: F, CCM, VR e um dos trens.';
+  else t = 'Resta um caminho de sucesso, pelo trem ' + (S.path[1] ? '1' : '2') + '. A estação cumpre a função; o paralelo tolerou a falta.';
+  m.textContent = t; m.className = cls;
+}
+function paint(){
+  for (const m of pick) m.material.color.setHex(failed[m.userData.id] ? C.red : m.userData.base);
+  for (const k in lel) if (P[k]) { lel[k].classList.toggle('fail', !!failed[k]); lel[k].textContent = LBL[k] + (failed[k]==='aberta' ? ' aberta' : ''); }
+  const S = state(); flows(S); status(S); rbd(S);
+}
+// --- ficha
+let sel = null;
+function show(id){
+  sel = id; selSub = null; hl(); const p = P[id];
+  document.getElementById('iName').textContent = p.n;
+  document.getElementById('iDesc').textContent = p.d;
+  document.getElementById('iDl').innerHTML = [['Subsistema (PR 1.1)',p.sub],...(p.inside?[['Subsistema por função',subOf('func',id)],['Subsistema por tecnologia',subOf('tec',id)]]:[]),['Posição',p.inside?'Dentro da fronteira':'Fora da fronteira (supra-sistema)'],['Diagrama de blocos',p.rbd],['R(1 ano)',p.r?String(p.r).replace('.',','):'—']].map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  const b = document.getElementById('iBtn'), b2 = document.getElementById('iBtn2'), V = /^V[12]$/.test(id);
+  b.hidden = false; b2.hidden = !V;
+  if (V) { b.textContent = failed[id]==='fechada' ? 'Reparar' : 'Travada fechada'; b2.textContent = failed[id]==='aberta' ? 'Reparar' : 'Travada aberta'; }
+  else b.textContent = failed[id] ? 'Reparar' : 'Marcar como falhado';
+}
+function toggle(mode){ if (!sel) return; const V = /^V[12]$/.test(sel);
+  if (V) { if (failed[sel]===mode) delete failed[sel]; else failed[sel] = mode; } else { if (failed[sel]) delete failed[sel]; else failed[sel] = true; }
+  show(sel); paint(); }
+document.getElementById('iBtn').addEventListener('click', () => toggle('fechada'));
+document.getElementById('iBtn2').addEventListener('click', () => toggle('aberta'));
+document.getElementById('reset').addEventListener('click', () => { for (const k in failed) delete failed[k]; if (sel) show(sel); paint(); });
+const ray = new THREE.Raycaster(), mv = new THREE.Vector2(); let down = null;
+canvas.addEventListener('pointerdown', e => down = [e.clientX, e.clientY]);
+canvas.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX-down[0], e.clientY-down[1]) > 6) return;
+  const r = canvas.getBoundingClientRect(); mv.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(mv, cam); const hit = ray.intersectObjects(pick.filter(m => m.visible && (supra.visible || P[m.userData.id].inside)))[0];
+  if (hit) { show(hit.object.userData.id); document.getElementById('info').scrollIntoView({block:'nearest', behavior:'smooth'}); }
+});
+// --- tema e tamanho
+function theme(){ const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme!=='light' || document.documentElement.dataset.theme==='dark';
+  renderer.setClearColor(dark ? 0x163541 : 0xffffff); ground.material.color.setHex(dark ? 0x1d3f4b : 0xe6eef0); }
+new MutationObserver(theme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']}); theme();
+function size(){ const w = stage.clientWidth, h = stage.clientHeight; renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(w, h, false); cam.aspect = w/h; cam.updateProjectionMatrix(); }
+const ro = new ResizeObserver(size); ro.observe(stage); size();
+{ const [p,t] = at(VIEWS.geral); cam.position.copy(p); ctl.target.copy(t); }
+function draw(){
+  const w = stage.clientWidth, h = stage.clientHeight, v = new THREE.Vector3();
+  for (const [k,d] of Object.entries(lel)) {
+    const outside = P[k] && !P[k].inside;
+    if (outside && !supra.visible) { d.style.display='none'; continue; }
+    v.set(...labelPos[k]).project(cam);
+    if (v.z > 1) { d.style.display='none'; continue; }
+    d.style.display=''; d.style.left = ((v.x+1)/2*w)+'px'; d.style.top = ((1-v.y)/2*h)+'px';
+  }
+  for (const x of xl) {
+    if (!x.vis()) { x.el.style.display='none'; continue; }
+    v.set(...x.pos).project(cam);
+    if (v.z > 1) { x.el.style.display='none'; continue; }
+    x.el.style.display=''; x.el.style.left = ((v.x+1)/2*w)+'px'; x.el.style.top = ((1-v.y)/2*h)+'px';
+  }
+}
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const t = clock.elapsedTime;
+  if (fly) { fly.k = Math.min(1, fly.k + 0.03); const e = 1-Math.pow(1-fly.k,3); cam.position.lerpVectors(fly.p0, fly.p1, e); ctl.target.lerpVectors(fly.t0, fly.t1, e); if (fly.k>=1) fly=null; }
+  const pulse = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 1 + 0.12*Math.sin(t*3);
+  rings[1].scale.setScalar(pulse);
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches, dt = Math.min(clock.getDelta(), 0.1);
+  for (const P0 of Object.values(paths)) { if (!P0.on) continue; const K = FLOW[P0.kind]; if (!still) P0.ph += P0.dir*K.v*dt;
+    const n = P0.beads.length; for (let i=0;i<n;i++) P0.beads[i].position.copy(at3(P0, P0.ph + i*P0.tot/n)); }
+  for (const k in torque) { const T = torque[k]; T.g.visible = T.on && flowsOn; if (T.on && !still) T.g.rotation.x -= 6*dt; }
+  ctl.update(); renderer.render(scene, cam); draw();
+});
+paint();
+}
+}
+</script>
+</body>
+</html>
